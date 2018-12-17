@@ -131,40 +131,18 @@ char getCharFromBuffer(vector<char> &buffer)
     {
     }
 }
-char *getBufferFromHuffman(char *buffer, map<char, int> codes, int sz)
+char *getStringFromHuffman(char *buffer, map<char, int> codes, int sz)
 {
-    vector<char> outputBuffer;
-
-    vector<char> tempBuffer;
-    for (int i = 0; i < sz; i++)
+    char* outputBuffer = (char*)malloc(sz);
+    for(int i=0; i<sz; i++)
     {
-        if (tempBuffer.size() == 8)
-        {
-            outputBuffer.push_back(getCharFromBuffer(tempBuffer));
-        }
-
-        else
-        {
-
-            if(length(codes[buffer[i]]>8))
-            {
-
-            }
-
-            else{
-                tempBuffer.push_back(codes[buffer[i]] - '0');
-            }
-            
-        }
+        outputBuffer[i]=codes[buffer[i]]-'0';
     }
 
-    if (tempBuffer.size() > 0)
-    {
-        outputBuffer.push_back(getCharFromBuffer(tempBuffer));
-    }
+    //This itself is wrong
 
-    //may be buggy if left
-    return outputBuffer.data();
+    return outputBuffer;
+    
 }
 
 vector<pair<char, int> > convertToVector(map<char, int> codes)
@@ -179,11 +157,43 @@ vector<pair<char, int> > convertToVector(map<char, int> codes)
     return codesV;
 }
 
-void compressFile(char *path, char *output_path)
+char* convertStringToBuffer(char* bitstring, int sz)
+{
+    vector<char> outputBuffer;
+    int interval = 0;
+    char bit = 0;
+    for(int i=0; i<sz; i++)
+    {
+        
+        if(interval==8)
+        {
+            interval = 0;
+            // cout<<(bit-'0')<<endl;
+            outputBuffer.push_back(bit);
+            bit = 0;
+        
+        }
+
+        else{
+            bit = (bit<<1)|(bitstring[i]-'0');
+        }
+
+        interval++;
+    }
+
+    if(interval>0)
+    {
+        outputBuffer.push_back(bit);
+    }
+
+    return outputBuffer.data();
+}
+
+void compressFile(char *path, char *output_path, map<char, int> &codes)
 {
     int sz = 0;
     char *buffer = readFileIntoBuffer(path, sz);
-    map<char, int> codes;
+    // map<char, int> codes;
     map<char, int> freqtable;
 
     for (int i = 0; i < sz; i++)
@@ -196,14 +206,63 @@ void compressFile(char *path, char *output_path)
     Tree *root = buildHuffmanTree(convertToVector(freqtable));
     traverseHuffmanTree(root, 0, -1, codes);
 
-    //First get output bitstring
+    // First get output bitstring
     //Then write in terms of bytes
+
+    char *outputString = getStringFromHuffman(buffer, codes, sz);
     
-    char *outputBuffer = getBufferFromHuffman(buffer, codes, sz);
+    char* outputBuffer = convertStringToBuffer(outputString, sz);
     writeFileFromBuffer(output_path, outputBuffer, sz);
 }
 
-int main()
+char* getDecodedBuffer(char* fileBuffer, map<char, int> codes, int &sz)
+{
+    int bit = 0;
+
+    
+    map<int, char> reversecodes;
+    vector<char> buffer;
+
+    for(map<char, int>::iterator i = codes.begin(); i!=codes.end(); i++)
+    {
+        reversecodes[i->second] = i->first;
+    }
+    for(int i=0; i<sz; i++)
+    {
+        if(reversecodes.find(bit)==reversecodes.end())
+        {
+            
+
+            bit = (bit<<1)|(fileBuffer[i]);
+
+            
+            
+        }
+
+        else{
+            
+            buffer.push_back(reversecodes[bit]);
+            bit = 0;
+        }
+    }
+
+    sz = buffer.size();
+    return buffer.data();
+}
+
+
+void decompressFile(char* inputPath, char* outputPath, map<char, int> codes)
+{
+    int sz = 0;
+
+    char* fileBuffer = readFileIntoBuffer(inputPath, sz);
+    char* outputBuffer = getDecodedBuffer(fileBuffer, codes, sz);
+    
+    writeFileFromBuffer(outputPath, outputBuffer,sz);
+
+}
+
+int main(int argc, char* argv[])
 {
 
     // vector<pair<char, int> > freqtable;
@@ -221,5 +280,17 @@ int main()
     // vector<int> code;
     // traverseHuffmanTree(root, 0, -1, altTable);
 
-    compressFile("test.jpg", "test1.jpg");
+    char* dEI = "test.jpg";
+    char* dEO = "test1.jpg";
+    char *dDO = "decoded.jpg";
+
+    if(argc==4)
+    {
+        dEI = argv[1];
+        dEO = argv[2];
+        dDO=argv[3];
+    }
+    map<char, int> codes;
+    compressFile(dEI, dEO, codes);
+    decompressFile(dEO, dDO, codes);
 }
