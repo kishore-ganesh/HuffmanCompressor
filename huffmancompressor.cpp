@@ -358,9 +358,9 @@ int main(int argc, char* argv[])
     // traverseHuffmanTree(root, 0, -1, altTable);
     //fp state?
 
-     char* dEI = "test.jpg";
-    char* dEO = "test1.jpg";
-    char *dDO = "decoded.jpg";
+     char* dEI = "test.txt";
+    char* dEO = "test1.txt";
+    char *dDO = "decoded.txt";
 
 
     if(argc==4)
