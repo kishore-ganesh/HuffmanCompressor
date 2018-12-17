@@ -3,7 +3,7 @@ using namespace std;
 struct Tree
 {
     int frequency;
-    char character;
+    unsigned char character;
     Tree *left = NULL;
     Tree *right = NULL;
 };
@@ -25,7 +25,7 @@ void printVector(vector<int> A)
     }
 }
 
-Tree *buildHuffmanTree(vector<pair<char, int> > freqtable)
+Tree *buildHuffmanTree(vector<pair<unsigned char, int> > freqtable)
 {
 
     priority_queue<Tree *, vector<Tree *>, TreeComparator> huffqueue;
@@ -66,7 +66,33 @@ int length(int a)
     return cc;
 }
 
-void traverseHuffmanTree(Tree *root, int prev, int toAppend, map<char, int> &codemap)
+string toBinary(unsigned  char a)
+{
+    string output  = "";
+    while(a!=0)
+    {
+        string bit = a%2==0?"0":"1";
+        output+=bit;
+        a/=2;
+    }
+
+    if(output.size()<8)
+    {
+        // cout<<"LESS";
+        int deficit = 8 - output.size();
+        for(int i=0; i<deficit; i++)
+        {
+            output+="0";
+        }
+    }
+
+    reverse(output.begin(), output.end());
+    // cout<<output<<endl;
+    return output;
+    
+}
+//We're traversing the whole tre, Iright?
+void traverseHuffmanTree(Tree *root, int prev, int toAppend, map<unsigned char, int> &codemap)
 {
 
     if (toAppend != -1)
@@ -75,7 +101,7 @@ void traverseHuffmanTree(Tree *root, int prev, int toAppend, map<char, int> &cod
     }
     if (root->right == NULL && root->left == NULL)
     {
-        // cout << root->character << " ";
+        // cout << root->unsigned character << " ";
         if(length(prev)>8)
         {
             cout << length(prev);
@@ -96,25 +122,27 @@ void traverseHuffmanTree(Tree *root, int prev, int toAppend, map<char, int> &cod
     }
 }
 
-char *readFileIntoBuffer(char *path, int &sz)
+unsigned char *readFileIntoBuffer(char *path, int &sz)
 {
-    FILE *fp = fopen(path, "r");
+    FILE *fp = fopen(path, "rb");
     sz = 0;
     fseek(fp, 0, SEEK_END);
     sz = ftell(fp);
     fseek(fp, 0, SEEK_SET);
-    char *buffer = (char *)malloc(sz);
+    unsigned char *buffer = (unsigned char *)malloc(sz);
     fread(buffer, 1, sz, fp);
     return buffer;
 }
 
-void writeFileFromBuffer(char *path, char *buffer, int sz)
+void writeFileFromBuffer(char *path, unsigned char *buffer, int sz)
 {
-    FILE *fp = fopen(path, "w");
+    FILE *fp = fopen(path, "wb");
     fwrite(buffer, 1, sz, fp);
+
+    fclose(fp);
 }
 
-char getCharFromBuffer(vector<char> &buffer)
+unsigned char getcharFromBuffer(vector<unsigned char> &buffer)
 {
     int op = 0;
     for (int i = 0; i < buffer.size(); i++)
@@ -131,12 +159,21 @@ char getCharFromBuffer(vector<char> &buffer)
     {
     }
 }
-char *getStringFromHuffman(char *buffer, map<char, int> codes, int sz)
+string getStringFromHuffman(unsigned char *buffer, map<unsigned char, int> codes, int sz)
 {
-    char* outputBuffer = (char*)malloc(sz);
+    string outputBuffer="";
     for(int i=0; i<sz; i++)
     {
-        outputBuffer[i]=codes[buffer[i]]-'0';
+        outputBuffer=outputBuffer+to_string(codes[buffer[i]]);
+    }
+
+    if(outputBuffer.size()%8!=0)
+    {
+        int deficit = 8*((outputBuffer.size()/8)+1)-outputBuffer.size();
+        for(int i=0; i<deficit; i++)
+        {
+            outputBuffer+="0";
+        }
     }
 
     //This itself is wrong
@@ -145,11 +182,11 @@ char *getStringFromHuffman(char *buffer, map<char, int> codes, int sz)
     
 }
 
-vector<pair<char, int> > convertToVector(map<char, int> codes)
+vector<pair<unsigned char, int> > convertToVector(map<unsigned char, int> codes)
 {
-    vector<pair<char, int> > codesV;
+    vector<pair<unsigned char, int> > codesV;
 
-    for (map<char, int>::iterator i = codes.begin(); i != codes.end(); i++)
+    for (map<unsigned char, int>::iterator i = codes.begin(); i != codes.end(); i++)
     {
         codesV.push_back(make_pair(i->first, i->second));
     }
@@ -157,28 +194,29 @@ vector<pair<char, int> > convertToVector(map<char, int> codes)
     return codesV;
 }
 
-char* convertStringToBuffer(char* bitstring, int sz)
+unsigned char* convertStringToBuffer(string bitstring, int& sz)
 {
-    vector<char> outputBuffer;
+    vector<unsigned char> outputBuffer;
     int interval = 0;
-    char bit = 0;
+    unsigned char bit = 0;
+
     for(int i=0; i<sz; i++)
     {
         
+        bit = (bit<<1)|(bitstring[i]-'0');
+         
+        interval++;
         if(interval==8)
         {
+            // cout<<"Y"<<endl;
             interval = 0;
-            // cout<<(bit-'0')<<endl;
+            cout<<toBinary(bit)<<endl;
             outputBuffer.push_back(bit);
             bit = 0;
         
         }
 
-        else{
-            bit = (bit<<1)|(bitstring[i]-'0');
-        }
-
-        interval++;
+        
     }
 
     if(interval>0)
@@ -186,15 +224,19 @@ char* convertStringToBuffer(char* bitstring, int sz)
         outputBuffer.push_back(bit);
     }
 
+   
+    sz = outputBuffer.size();
     return outputBuffer.data();
 }
 
-void compressFile(char *path, char *output_path, map<char, int> &codes)
+
+
+void compressFile(char *path, char *output_path, map<unsigned char, int> &codes)
 {
     int sz = 0;
-    char *buffer = readFileIntoBuffer(path, sz);
-    // map<char, int> codes;
-    map<char, int> freqtable;
+    unsigned char *buffer = readFileIntoBuffer(path, sz);
+    // map<unsigned char, int> codes;
+    map<unsigned char, int> freqtable;
 
     for (int i = 0; i < sz; i++)
     {
@@ -209,31 +251,58 @@ void compressFile(char *path, char *output_path, map<char, int> &codes)
     // First get output bitstring
     //Then write in terms of bytes
 
-    char *outputString = getStringFromHuffman(buffer, codes, sz);
+    string outputString = getStringFromHuffman(buffer, codes, sz);
+    cout<<outputString.size()<<endl;
+    sz  = outputString.size();
     
-    char* outputBuffer = convertStringToBuffer(outputString, sz);
+    unsigned char* outputBuffer = convertStringToBuffer(outputString, sz);
     writeFileFromBuffer(output_path, outputBuffer, sz);
 }
 
-char* getDecodedBuffer(char* fileBuffer, map<char, int> codes, int &sz)
+
+string convertBufferToBitString(unsigned char* buffer, int sz)
 {
-    int bit = 0;
+    string bitstring = "";
 
     
-    map<int, char> reversecodes;
-    vector<char> buffer;
+    for(int i=0; i<sz; i++)
+    {
+        bitstring+=toBinary(buffer[i]);
+        cout<<"B"<<toBinary(buffer[i])<<endl;
+    }
 
-    for(map<char, int>::iterator i = codes.begin(); i!=codes.end(); i++)
+    return bitstring;
+}
+
+unsigned char* getDecodedBuffer(string bitstring, map<unsigned char, int> codes, int &sz)
+{
+    string bit = string(1,bitstring[0]);
+
+    
+    map<int, unsigned char> reversecodes;
+    vector<unsigned char> buffer;
+
+    for(map<unsigned char, int>::iterator i = codes.begin(); i!=codes.end(); i++)
     {
         reversecodes[i->second] = i->first;
     }
-    for(int i=0; i<sz; i++)
+
+    //We map unsigned chars to Integers
+    //Now we need to map Integers in the form of 0101011 to unsigned char
+    //But instead, we have integers in the form of 22s
+
+
+    //store bitstring anyways
+    //convert to bitstring first
+
+    //check order
+    for(int i=0; i<bitstring.size(); i++)
     {
-        if(reversecodes.find(bit)==reversecodes.end())
+        if(reversecodes.find(stoi(bit))==reversecodes.end())
         {
             
 
-            bit = (bit<<1)|(fileBuffer[i]);
+            bit+=string(1, bitstring[i]);
 
             
             
@@ -241,48 +310,53 @@ char* getDecodedBuffer(char* fileBuffer, map<char, int> codes, int &sz)
 
         else{
             
-            buffer.push_back(reversecodes[bit]);
-            bit = 0;
+            buffer.push_back(reversecodes[stoi(bit)]);
+            bit = string(1, bitstring[i+1]);
         }
     }
+
+    
 
     sz = buffer.size();
     return buffer.data();
 }
 
 
-void decompressFile(char* inputPath, char* outputPath, map<char, int> codes)
+void decompressFile( char* inputPath,  char* outputPath, map<unsigned char, int> codes)
 {
     int sz = 0;
-
-    char* fileBuffer = readFileIntoBuffer(inputPath, sz);
-    char* outputBuffer = getDecodedBuffer(fileBuffer, codes, sz);
+    unsigned char* fileBuffer = readFileIntoBuffer(inputPath, sz);
+    string fileBitString = convertBufferToBitString(fileBuffer, sz);
+    cout<<fileBitString<<endl;
+    unsigned char* outputBuffer = getDecodedBuffer(fileBitString, codes, sz);
     
     writeFileFromBuffer(outputPath, outputBuffer,sz);
-
+    //take care of appended zeroes
 }
 
 int main(int argc, char* argv[])
 {
 
-    // vector<pair<char, int> > freqtable;
+    // vector<pair<unsigned char, int> > freqtable;
 
-    // map<char, int> altTable;
+    // map<unsigned char, int> altTable;
     // for (int i = 0; i < 6; i++)
     // {
-    //     char character;
+    //     unsigned char unsigned character;
     //     int frequency;
-    //     cin >> character >> frequency;
-    //     freqtable.push_back(make_pair(character, frequency));
+    //     cin >> unsigned character >> frequency;
+    //     freqtable.push_back(make_pair(unsigned character, frequency));
     // }
 
     // Tree *root = buildHuffmanTree(freqtable);
     // vector<int> code;
     // traverseHuffmanTree(root, 0, -1, altTable);
+    //fp state?
 
-    char* dEI = "test.jpg";
+     char* dEI = "test.jpg";
     char* dEO = "test1.jpg";
     char *dDO = "decoded.jpg";
+
 
     if(argc==4)
     {
@@ -290,7 +364,7 @@ int main(int argc, char* argv[])
         dEO = argv[2];
         dDO=argv[3];
     }
-    map<char, int> codes;
+    map<unsigned char, int> codes;
     compressFile(dEI, dEO, codes);
     decompressFile(dEO, dDO, codes);
 }
