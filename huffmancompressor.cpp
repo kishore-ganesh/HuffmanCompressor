@@ -137,6 +137,7 @@ unsigned char *readFileIntoBuffer(char *path, int &sz)
 void writeFileFromBuffer(char *path, unsigned char *buffer, int sz)
 {
     FILE *fp = fopen(path, "wb");
+    // cout<<toBinary(buffer[0])<<"W";
     fwrite(buffer, 1, sz, fp);
 
     fclose(fp);
@@ -170,6 +171,7 @@ string getStringFromHuffman(unsigned char *buffer, map<unsigned char, int> codes
     if(outputBuffer.size()%8!=0)
     {
         int deficit = 8*((outputBuffer.size()/8)+1)-outputBuffer.size();
+        
         for(int i=0; i<deficit; i++)
         {
             outputBuffer+="0";
@@ -194,9 +196,9 @@ vector<pair<unsigned char, int> > convertToVector(map<unsigned char, int> codes)
     return codesV;
 }
 
-unsigned char* convertStringToBuffer(string bitstring, int& sz)
+unsigned char* convertStringToBuffer(string bitstring, vector<unsigned char>&outputBuffer, int& sz)
 {
-    vector<unsigned char> outputBuffer;
+    // vector<unsigned char> outputBuffer;
     int interval = 0;
     unsigned char bit = 0;
 
@@ -210,7 +212,7 @@ unsigned char* convertStringToBuffer(string bitstring, int& sz)
         {
             // cout<<"Y"<<endl;
             interval = 0;
-            cout<<toBinary(bit)<<endl;
+            // cout<<toBinary(bit)<<endl;
             outputBuffer.push_back(bit);
             bit = 0;
         
@@ -219,18 +221,13 @@ unsigned char* convertStringToBuffer(string bitstring, int& sz)
         
     }
 
-    if(interval>0)
-    {
-        outputBuffer.push_back(bit);
-    }
 
-   
     sz = outputBuffer.size();
     return outputBuffer.data();
 }
 
 
-
+//add amount padded 
 void compressFile(char *path, char *output_path, map<unsigned char, int> &codes)
 {
     int sz = 0;
@@ -252,10 +249,13 @@ void compressFile(char *path, char *output_path, map<unsigned char, int> &codes)
     //Then write in terms of bytes
 
     string outputString = getStringFromHuffman(buffer, codes, sz);
-    cout<<outputString.size()<<endl;
+    // cout<<outputString.size()<<endl;
     sz  = outputString.size();
     
-    unsigned char* outputBuffer = convertStringToBuffer(outputString, sz);
+    vector<unsigned char> outputBufferV;
+    convertStringToBuffer(outputString, outputBufferV, sz);
+    unsigned char* outputBuffer = outputBufferV.data();
+    // cout<<toBinary(outputBuffer[0])<<endl;
     writeFileFromBuffer(output_path, outputBuffer, sz);
 }
 
@@ -268,22 +268,21 @@ string convertBufferToBitString(unsigned char* buffer, int sz)
     for(int i=0; i<sz; i++)
     {
         bitstring+=toBinary(buffer[i]);
-        cout<<"B"<<toBinary(buffer[i])<<endl;
+        // cout<<"B"<<toBinary(buffer[i])<<endl;
     }
 
     return bitstring;
 }
 
-unsigned char* getDecodedBuffer(string bitstring, map<unsigned char, int> codes, int &sz)
+unsigned char* getDecodedBuffer(string bitstring, vector<unsigned char>&buffer, map<unsigned char, int> codes, int &sz)
 {
-    string bit = string(1,bitstring[0]);
+    string bit = "";
 
     
     map<int, unsigned char> reversecodes;
-    vector<unsigned char> buffer;
-
     for(map<unsigned char, int>::iterator i = codes.begin(); i!=codes.end(); i++)
     {
+        // cout<<i->second<<" "<<i->first<<endl;
         reversecodes[i->second] = i->first;
     }
 
@@ -294,29 +293,32 @@ unsigned char* getDecodedBuffer(string bitstring, map<unsigned char, int> codes,
 
     //store bitstring anyways
     //convert to bitstring first
-
+    //should do nothing when same freq
     //check order
+
+    //Add to header
     for(int i=0; i<bitstring.size(); i++)
     {
-        if(reversecodes.find(stoi(bit))==reversecodes.end())
+       
+        bit+=string(1, bitstring[i]);
+        // cout<<bit<<endl;
+        if(reversecodes.find(stoi(bit))!=reversecodes.end())
         {
             
 
-            bit+=string(1, bitstring[i]);
+           
+           buffer.push_back(reversecodes[stoi(bit)]);
+           bit = "";
 
             
             
-        }
-
-        else{
-            
-            buffer.push_back(reversecodes[stoi(bit)]);
-            bit = string(1, bitstring[i+1]);
         }
     }
 
     
 
+    
+    
     sz = buffer.size();
     return buffer.data();
 }
@@ -328,8 +330,11 @@ void decompressFile( char* inputPath,  char* outputPath, map<unsigned char, int>
     unsigned char* fileBuffer = readFileIntoBuffer(inputPath, sz);
     string fileBitString = convertBufferToBitString(fileBuffer, sz);
     cout<<fileBitString<<endl;
-    unsigned char* outputBuffer = getDecodedBuffer(fileBitString, codes, sz);
-    
+
+    vector<unsigned char> outputBufferV;
+    unsigned char* outputBuffer;
+    getDecodedBuffer(fileBitString,outputBufferV, codes, sz);
+    outputBuffer = outputBufferV.data();
     writeFileFromBuffer(outputPath, outputBuffer,sz);
     //take care of appended zeroes
 }
@@ -368,3 +373,6 @@ int main(int argc, char* argv[])
     compressFile(dEI, dEO, codes);
     decompressFile(dEO, dDO, codes);
 }
+
+//Bugs: Take care of last character
+//Same frequency one problematic
