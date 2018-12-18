@@ -34,14 +34,18 @@ Tree *buildHuffmanTree(vector<pair<unsigned char, int> > freqtable)
         Tree *node = new Tree();
         node->frequency = freqtable[i].second;
         node->character = freqtable[i].first;
+        
         huffqueue.push(node);
     }
+
+    
 
     while (huffqueue.size() > 1)
     {
         Tree *a, *b;
         a = huffqueue.top();
         huffqueue.pop();
+        
         b = huffqueue.top();
         huffqueue.pop();
         Tree *c = new Tree();
@@ -51,8 +55,11 @@ Tree *buildHuffmanTree(vector<pair<unsigned char, int> > freqtable)
         huffqueue.push(c);
     }
 
+    // cout<<huffqueue.top()<<endl;
     return huffqueue.top();
 }
+
+//Fux thisd bug
 
 int length(int a)
 {
@@ -92,33 +99,31 @@ string toBinary(unsigned  char a)
     
 }
 //We're traversing the whole tre, Iright?
-void traverseHuffmanTree(Tree *root, int prev, int toAppend, map<unsigned char, int> &codemap)
+//Her'es the problem
+void traverseHuffmanTree(Tree *root, string prev, string toAppend, map<unsigned char, string> &codemap)
 {
 
-    if (toAppend != -1)
-    {
-        prev = prev * 10 + toAppend;
-    }
+    
+    //1. Change calls
+    //2. Change wherever this map is used
+    prev+=toAppend;
+    
     if (root->right == NULL && root->left == NULL)
     {
         // cout << root->unsigned character << " ";
-        if(length(prev)>8)
-        {
-            cout << length(prev);
-            cout << endl;
-        }
-        
+
+        cout<<root->character<<" "<<prev<<endl;
         
         codemap[root->character] = prev;
     }
     if (root->right != NULL)
     {
-        traverseHuffmanTree(root->right, prev, 1, codemap);
+        traverseHuffmanTree(root->right, prev, "1", codemap);
     }
 
     if (root->left != NULL)
     {
-        traverseHuffmanTree(root->left, prev, 0, codemap);
+        traverseHuffmanTree(root->left, prev, "0", codemap);
     }
 }
 
@@ -160,12 +165,12 @@ unsigned char getcharFromBuffer(vector<unsigned char> &buffer)
     {
     }
 }
-string getStringFromHuffman(unsigned char *buffer, map<unsigned char, int> codes, int sz)
+string getStringFromHuffman(unsigned char *buffer, map<unsigned char, string> codes, int sz)
 {
     string outputBuffer="";
     for(int i=0; i<sz; i++)
     {
-        outputBuffer=outputBuffer+to_string(codes[buffer[i]]);
+        outputBuffer=outputBuffer+codes[buffer[i]];
     }
 
     if(outputBuffer.size()%8!=0)
@@ -177,6 +182,8 @@ string getStringFromHuffman(unsigned char *buffer, map<unsigned char, int> codes
             outputBuffer+="0";
         }
     }
+
+    //Instead of adding zeroes to the end, add zero to the begining of the last byte
 
     //This itself is wrong
 
@@ -228,7 +235,7 @@ unsigned char* convertStringToBuffer(string bitstring, vector<unsigned char>&out
 
 
 //add amount padded 
-void compressFile(char *path, char *output_path, map<unsigned char, int> &codes)
+void compressFile(char *path, char *output_path, map<unsigned char, string> &codes)
 {
     int sz = 0;
     unsigned char *buffer = readFileIntoBuffer(path, sz);
@@ -238,17 +245,23 @@ void compressFile(char *path, char *output_path, map<unsigned char, int> &codes)
     for (int i = 0; i < sz; i++)
     {
  
+         
             freqtable[buffer[i]]++;
+    
  
     }
 
+    // cout<<endl;
+
     Tree *root = buildHuffmanTree(convertToVector(freqtable));
-    traverseHuffmanTree(root, 0, -1, codes);
+    cout<<root<<endl;
+    traverseHuffmanTree(root, "", "", codes);
 
     // First get output bitstring
     //Then write in terms of bytes
 
     string outputString = getStringFromHuffman(buffer, codes, sz);
+    cout<<outputString<<endl;
     // cout<<outputString.size()<<endl;
     sz  = outputString.size();
     
@@ -274,13 +287,13 @@ string convertBufferToBitString(unsigned char* buffer, int sz)
     return bitstring;
 }
 
-unsigned char* getDecodedBuffer(string bitstring, vector<unsigned char>&buffer, map<unsigned char, int> codes, int &sz)
+unsigned char* getDecodedBuffer(string bitstring, vector<unsigned char>&buffer, map<unsigned char, string> codes, int &sz)
 {
     string bit = "";
 
     
-    map<int, unsigned char> reversecodes;
-    for(map<unsigned char, int>::iterator i = codes.begin(); i!=codes.end(); i++)
+    map<string, unsigned char> reversecodes;
+    for(map<unsigned char, string>::iterator i = codes.begin(); i!=codes.end(); i++)
     {
         // cout<<i->second<<" "<<i->first<<endl;
         reversecodes[i->second] = i->first;
@@ -302,12 +315,12 @@ unsigned char* getDecodedBuffer(string bitstring, vector<unsigned char>&buffer, 
        
         bit+=string(1, bitstring[i]);
         // cout<<bit<<endl;
-        if(reversecodes.find(stoi(bit))!=reversecodes.end())
+        if(reversecodes.find(bit)!=reversecodes.end())
         {
             
 
            
-           buffer.push_back(reversecodes[stoi(bit)]);
+           buffer.push_back(reversecodes[bit]);
            bit = "";
 
             
@@ -324,7 +337,7 @@ unsigned char* getDecodedBuffer(string bitstring, vector<unsigned char>&buffer, 
 }
 
 
-void decompressFile( char* inputPath,  char* outputPath, map<unsigned char, int> codes)
+void decompressFile( char* inputPath,  char* outputPath, map<unsigned char, string> codes)
 {
     int sz = 0;
     unsigned char* fileBuffer = readFileIntoBuffer(inputPath, sz);
@@ -369,7 +382,7 @@ int main(int argc, char* argv[])
         dEO = argv[2];
         dDO=argv[3];
     }
-    map<unsigned char, int> codes;
+    map<unsigned char, string> codes;
     compressFile(dEI, dEO, codes);
     decompressFile(dEO, dDO, codes);
 }
