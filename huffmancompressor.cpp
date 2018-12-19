@@ -81,7 +81,7 @@ void traverseHuffmanTree(Tree *root, string prev, string toAppend, map<unsigned 
     
     if (root->right == NULL && root->left == NULL)
     {
-        cout<<root->character<<" "<<prev<<endl;   
+        // cout<<root->character<<" "<<prev<<endl;   
         codemap[root->character] = prev;
     }
     if (root->right != NULL)
@@ -107,9 +107,18 @@ unsigned char *readFileIntoBuffer(char *path, int &sz)
     return buffer;
 }
 
-void writeFileFromBuffer(char *path, unsigned char *buffer, int sz)
+void writeFileFromBuffer(char *path, unsigned char *buffer, int sz, int flag)
 {
-    FILE *fp = fopen(path, "wb");
+    FILE *fp;
+    if(flag==0)
+    {
+        fp = fopen(path, "wb");
+    }
+
+    else{
+        fp = fopen(path, "ab");
+    }
+   
     fwrite(buffer, 1, sz, fp);
 
     fclose(fp);
@@ -128,7 +137,7 @@ vector<pair<unsigned char, int> > convertToVector(map<unsigned char, int> codes)
     return codesV;
 }
 
-string getHuffmanBitstring(unsigned char *buffer, map<unsigned char, string> codes, int sz)
+string getHuffmanBitstring(unsigned char *buffer, map<unsigned char, string> codes, int sz, int& paddedBits)
 {
     string outputBuffer="";
     for(int i=0; i<sz; i++)
@@ -139,7 +148,7 @@ string getHuffmanBitstring(unsigned char *buffer, map<unsigned char, string> cod
     if(outputBuffer.size()%8!=0)
     {
         int deficit = 8*((outputBuffer.size()/8)+1)-outputBuffer.size();
-        
+        paddedBits = deficit;
         for(int i=0; i<deficit; i++)
         {
             outputBuffer+="0";
@@ -185,7 +194,7 @@ string getStringFromBuffer(unsigned char* buffer, int sz)
     return bitstring;
 }
 
-unsigned char* getDecodedBuffer(string bitstring, vector<unsigned char>&buffer, map<unsigned char, string> codes, int &sz)
+unsigned char* getDecodedBuffer(string bitstring, vector<unsigned char>&buffer, map<unsigned char, string> codes, int &sz, int paddedBits)
 {
     string bit = "";
     map<string, unsigned char> reversecodes;
@@ -195,7 +204,7 @@ unsigned char* getDecodedBuffer(string bitstring, vector<unsigned char>&buffer, 
         reversecodes[i->second] = i->first;
     }
 
-    for(int i=0; i<bitstring.size(); i++)
+    for(int i=0; i<bitstring.size()-paddedBits; i++)
     {
         bit+=string(1, bitstring[i]);
         if(reversecodes.find(bit)!=reversecodes.end())
@@ -210,13 +219,65 @@ unsigned char* getDecodedBuffer(string bitstring, vector<unsigned char>&buffer, 
 }
 
 
+void writeHeader(char* path,map<unsigned char, string> codes,  int paddedBits){
+    
+    int size = codes.size();
+    writeFileFromBuffer(path, (unsigned char*)&paddedBits, sizeof(int), 0);
+    writeFileFromBuffer(path, (unsigned char*)&size, sizeof(int), 1);
+    char nullBit = '\0';
+    for(map<unsigned char, string>::iterator i = codes.begin(); i!=codes.end(); i++)
+    {
+        writeFileFromBuffer(path, (unsigned char*)&i->first, 1, 1);
+        int len = i->second.size();
+        writeFileFromBuffer(path, (unsigned char*)&len, sizeof(int), 1);
+        writeFileFromBuffer(path, (unsigned char*)i->second.c_str(), i->second.size(), 1);
+    }
+}
+
+
+unsigned char* readHeader(unsigned char* buffer, map<unsigned char, string> &codes, int& paddedBits, int &sz)
+{
+   paddedBits = *((int*)buffer);
+   cout<<paddedBits<<"PADDED"<<endl;
+   buffer = buffer+4;
+   sz-=4;
+   int size = *((int*)buffer);
+   buffer = buffer+4;
+   sz-=4;
+   for(int i=0; i<size; i++)
+   {    
+       unsigned char key = buffer[0];
+       buffer++;
+       sz--;
+       int len = *((int*)buffer);
+       buffer+=4;
+       sz-=4;
+       char* value = (char*)malloc(len+1);
+
+       for(int j = 0; j<len; j++)
+       {
+           value[j]=buffer[j];
+       }
+    //    value = (char*)buffer;
+       buffer+=len;
+       sz-=len;
+       value[len]='\0';
+       codes[key] = value;
+       cout<<key<<" "<<value<<endl;
+   }
+
+   return buffer;
+}
+
+
 
 //add amount padded 
 void compressFile(char *path, char *output_path, map<unsigned char, string> &codes)
 {
     int sz = 0;
-    unsigned char *buffer = readFileIntoBuffer(path, sz);
+    int paddedBits = 0;
     map<unsigned char, int> freqtable;
+    unsigned char *buffer = readFileIntoBuffer(path, sz);
     for (int i = 0; i < sz; i++)
     {
             freqtable[buffer[i]]++;
@@ -224,25 +285,29 @@ void compressFile(char *path, char *output_path, map<unsigned char, string> &cod
     Tree *root = buildHuffmanTree(convertToVector(freqtable));
     cout<<root<<endl;
     traverseHuffmanTree(root, "", "", codes);
-    string outputString = getHuffmanBitstring(buffer, codes, sz);
+    string outputString = getHuffmanBitstring(buffer, codes, sz, paddedBits);
     sz  = outputString.size();
     vector<unsigned char> outputBufferV;
     getBufferFromString(outputString, outputBufferV, sz);
     unsigned char* outputBuffer = outputBufferV.data();
-    writeFileFromBuffer(output_path, outputBuffer, sz);
+    writeHeader(output_path, codes, paddedBits);
+    writeFileFromBuffer(output_path, outputBuffer, sz, 1);
 }
 
-void decompressFile( char* inputPath,  char* outputPath, map<unsigned char, string> codes)
+void decompressFile( char* inputPath,  char* outputPath)
 {
     int sz = 0;
+    map<unsigned char, string> codes;
+    int paddedBits = 0;
     unsigned char* fileBuffer = readFileIntoBuffer(inputPath, sz);
+    fileBuffer = readHeader(fileBuffer, codes, paddedBits, sz);
     string fileBitString = getStringFromBuffer(fileBuffer, sz);
-    cout<<fileBitString<<endl;
+    // cout<<fileBitString<<endl;
     vector<unsigned char> outputBufferV;
     unsigned char* outputBuffer;
-    getDecodedBuffer(fileBitString,outputBufferV, codes, sz);
+    getDecodedBuffer(fileBitString,outputBufferV, codes, sz, paddedBits);
     outputBuffer = outputBufferV.data();
-    writeFileFromBuffer(outputPath, outputBuffer,sz);
+    writeFileFromBuffer(outputPath, outputBuffer,sz, 0);
     //take care of appended zeroes
 }
 
@@ -261,7 +326,7 @@ int main(int argc, char* argv[])
     }
     map<unsigned char, string> codes;
     compressFile(dEI, dEO, codes);
-    decompressFile(dEO, dDO, codes);
+    decompressFile(dEO, dDO);
 }
 
 //Bugs: Take care of last character
