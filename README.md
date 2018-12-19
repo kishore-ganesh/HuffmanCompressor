@@ -38,11 +38,13 @@ Case in point:
 
 ## Issues
 
-1. It is quite slow. I'm sure there's a better way than having to muck around in converting to bitstrings over and over again.
+
 
 ~1. There's a bug in which if you have equal frequencies, it doesn't work properly(FIXED)~
 
 ~2. In the implementation, we're appending zeroes to make the bitstring length a multiple of 8. Due to this, during the decompression phase, some unwanted characters are added(At most 7). This can be fixed by storing the amount we padded in the file.~
+
+~3. It is quite slow. I'm sure there's a better way than having to muck around in converting to bitstrings over and over again.~
 
 
 
